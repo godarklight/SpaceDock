@@ -9,7 +9,9 @@ from ..config import _cfg
 from ..database import db
 from ..objects import Featured, Mod, ModVersion, Game, User
 from ..search import search_mods
+from ..cache import Cache
 
+cache = Cache()
 anonymous = Blueprint('anonymous', __name__, template_folder='../../templates/anonymous')
 
 
@@ -22,6 +24,14 @@ def index():
 
 @anonymous.route("/<gameshort>")
 def game(gameshort):
+    cache_key = "gameshort_" + gameshort
+    if current_user:
+        cache_key = cache_key + str(current_user.id)
+    cached_data = cache.get_key(cache_key, lambda: real_gameshort(gameshort))
+    return cached_data
+
+
+def real_gameshort(gameshort):
     ga = get_game_info(short=gameshort)
     featured = Featured.query.outerjoin(Mod).filter(Mod.published,Mod.game_id == ga.id).order_by(desc(Featured.created)).limit(6)[:6]
     # top = search_mods("", 1, 3)[0]
